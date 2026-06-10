@@ -1,6 +1,6 @@
 {
   "name": "groundster-backend",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Backend API for Groundster Event Monitor",
   "main": "main.js",
   "scripts": {
