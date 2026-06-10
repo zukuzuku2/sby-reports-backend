@@ -1,4 +1,5 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, dialog } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('path');
 
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
@@ -48,6 +49,23 @@ app.whenReady().then(() => {
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  });
+
+  if (!isDev) {
+    autoUpdater.checkForUpdatesAndNotify();
+  }
+});
+
+autoUpdater.on('update-downloaded', (info) => {
+  dialog.showMessageBox({
+    type: 'info',
+    title: 'Actualización disponible',
+    message: 'Una nueva versión de Groundster Monitor ha sido descargada. ¿Deseas instalarla y reiniciar la aplicación ahora?',
+    buttons: ['Sí, actualizar ahora', 'Más tarde']
+  }).then((result) => {
+    if (result.response === 0) {
+      autoUpdater.quitAndInstall();
+    }
   });
 });
 

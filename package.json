@@ -1,6 +1,6 @@
 {
   "name": "groundster-backend",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Backend API for Groundster Event Monitor",
   "main": "main.js",
   "scripts": {
@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "cors": "^2.8.5",
+    "electron-updater": "^6.8.9",
     "express": "^4.19.2",
     "sqlite3": "^5.1.7"
   },
@@ -21,6 +22,14 @@
   "build": {
     "appId": "com.sby.groundster-monitor",
     "productName": "Groundster Monitor",
+    "artifactName": "Groundster_Monitor_${version}.${ext}",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "SU_USUARIO_DE_GITHUB",
+        "repo": "SU_REPOSITORIO"
+      }
+    ],
     "directories": {
       "output": "dist-desktop"
     },
@@ -61,4 +70,3 @@
     }
   }
 }
-
