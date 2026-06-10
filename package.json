@@ -26,8 +26,8 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "SU_USUARIO_DE_GITHUB",
-        "repo": "SU_REPOSITORIO"
+        "owner": "zukuzuku2",
+        "repo": "sby-reports-backend"
       }
     ],
     "directories": {
