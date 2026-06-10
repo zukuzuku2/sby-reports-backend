@@ -1,15 +1,72 @@
 {
   "name": "groundster-backend",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Backend API for Groundster Event Monitor",
-  "main": "server.js",
+  "main": "main.js",
   "scripts": {
     "start": "node server.js",
-    "init-db": "node database.js"
+    "init-db": "node database.js",
+    "electron:dev": "electron .",
+    "build:desktop": "electron-builder"
   },
   "dependencies": {
     "cors": "^2.8.5",
+    "electron-updater": "^6.8.9",
     "express": "^4.19.2",
     "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "electron": "^42.4.0",
+    "electron-builder": "^26.15.2"
+  },
+  "build": {
+    "appId": "com.sby.groundster-monitor",
+    "productName": "Groundster Monitor",
+    "artifactName": "Groundster_Monitor_${version}.${ext}",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "SU_USUARIO_DE_GITHUB",
+        "repo": "SU_REPOSITORIO"
+      }
+    ],
+    "directories": {
+      "output": "dist-desktop"
+    },
+    "files": [
+      "**/*",
+      "!node_modules/electron/**/*",
+      "!node_modules/electron-builder/**/*",
+      "!dist-desktop/**/*",
+      "!groundster.db",
+      "!generate_cycles.js_out"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
   }
 }

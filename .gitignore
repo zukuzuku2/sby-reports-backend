@@ -7,6 +7,10 @@ groundster.db-journal
 *.db-shm
 *.db-wal
 
+# Desktop builds output
+dist-desktop/
+
+
 # Environment variables
 .env
 .env.local
