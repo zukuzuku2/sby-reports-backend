@@ -30,25 +30,47 @@ function naturalNumericalSort(arr) {
 function initDatabase(dbPath, callback) {
   const db = new sqlite3.Database(dbPath);
 
-  db.serialize(() => {
+  // Helper functions to wrap sqlite3 methods in Promises
+  const run = (sql, params = []) => new Promise((resolve, reject) => {
+    db.run(sql, params, function(err) {
+      if (err) reject(err);
+      else resolve(this);
+    });
+  });
+
+  const get = (sql, params = []) => new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) reject(err);
+      else resolve(row);
+    });
+  });
+
+  const all = (sql, params = []) => new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows);
+    });
+  });
+
+  async function runInit() {
     console.log(`⚡ Iniciando inicialización de base de datos segura y persistente en: ${dbPath}`);
     
     // 1. Create tables if they do not exist
-    db.run(`
+    await run(`
       CREATE TABLE IF NOT EXISTS bulls (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT UNIQUE NOT NULL
       )
     `);
     
-    db.run(`
+    await run(`
       CREATE TABLE IF NOT EXISTS jefes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT UNIQUE NOT NULL
       )
     `);
     
-    db.run(`
+    await run(`
       CREATE TABLE IF NOT EXISTS events (
         id INTEGER PRIMARY KEY,
         machine TEXT NOT NULL,
@@ -66,75 +88,56 @@ function initDatabase(dbPath, callback) {
       )
     `);
 
-    db.all("PRAGMA table_info(events)", (err, columns) => {
-      if (err) {
-        console.error('❌ Error al verificar info de tabla:', err.message);
-        return;
-      }
-      const hasCreador = (columns || []).some(col => col.name === 'creador');
-      if (!hasCreador) {
-        db.run("ALTER TABLE events ADD COLUMN creador TEXT DEFAULT 'Desconocido'", (alterErr) => {
-          if (alterErr) {
-            console.error('❌ Error al agregar la columna creador:', alterErr.message);
-          } else {
-            console.log('✅ Columna "creador" agregada exitosamente a la tabla "events".');
-          }
-        });
-      }
-    });
-
-    // 2. Check and Seed Bulls (only if the table is empty)
-    db.get('SELECT count FROM (SELECT COUNT(*) as count FROM bulls)', (err, row) => {
-      if (err) {
-        console.error('❌ Error al verificar la tabla de bulls:', err.message);
-        return;
-      }
-      
-      const count = row ? row.count : 0;
-      if (count === 0) {
-        console.log('🌱 La tabla de bulls está vacía. Sembrando bulls ordenados...');
-        const sortedBulls = naturalNumericalSort(rawBulls);
-        const insertBullStmt = db.prepare('INSERT INTO bulls (name) VALUES (?)');
-        sortedBulls.forEach(bull => {
-          insertBullStmt.run(bull);
-        });
-        insertBullStmt.finalize();
-        console.log('✅ Bulls inicializados en base de datos.');
-      } else {
-        console.log('ℹ️ La tabla de bulls ya contiene registros. Manteniendo consistencia.');
-      }
-    });
-
-    // 3. Check and Seed Jefes de Turno (only if the table is empty)
-    db.get('SELECT count FROM (SELECT COUNT(*) as count FROM jefes)', (err, row) => {
-      if (err) {
-        console.error('❌ Error al verificar la tabla de jefes:', err.message);
-        return;
-      }
-      
-      const count = row ? row.count : 0;
-      if (count === 0) {
-        console.log('🌱 La tabla de jefes de turno está vacía. Sembrando supervisores...');
-        const sortedJefes = [...shiftSupervisors].sort((a, b) => a.localeCompare(b));
-        const insertJefeStmt = db.prepare('INSERT INTO jefes (name) VALUES (?)');
-        sortedJefes.forEach(jefe => {
-          insertJefeStmt.run(jefe);
-        });
-        insertJefeStmt.finalize();
-        console.log('✅ Jefes de Turno inicializados en base de datos.');
-      } else {
-        console.log('ℹ️ La tabla de jefes ya contiene registros. Manteniendo consistencia.');
-      }
-    });
-
-    console.log('🎉 Verificación/Inicialización de la estructura de base de datos Groundster completa.');
-  });
-
-  db.close((err) => {
-    if (callback) {
-      callback(err);
+    // 2. Check and alter table events if "creador" column is missing
+    const columns = await all("PRAGMA table_info(events)");
+    const hasCreador = columns.some(col => col.name === 'creador');
+    if (!hasCreador) {
+      await run("ALTER TABLE events ADD COLUMN creador TEXT DEFAULT 'Desconocido'");
+      console.log('✅ Columna "creador" agregada exitosamente a la tabla "events".');
     }
-  });
+
+    // 3. Check and Seed Bulls (only if the table is empty)
+    const bullsCountRow = await get('SELECT COUNT(*) as count FROM bulls');
+    const bullsCount = bullsCountRow ? bullsCountRow.count : 0;
+    if (bullsCount === 0) {
+      console.log('🌱 La tabla de bulls está vacía. Sembrando bulls ordenados...');
+      const sortedBulls = naturalNumericalSort(rawBulls);
+      for (const bull of sortedBulls) {
+        await run('INSERT INTO bulls (name) VALUES (?)', [bull]);
+      }
+      console.log('✅ Bulls inicializados en base de datos.');
+    } else {
+      console.log('ℹ️ La tabla de bulls ya contiene registros. Manteniendo consistencia.');
+    }
+
+    // 4. Check and Seed Jefes de Turno (only if the table is empty)
+    const jefesCountRow = await get('SELECT COUNT(*) as count FROM jefes');
+    const jefesCount = jefesCountRow ? jefesCountRow.count : 0;
+    if (jefesCount === 0) {
+      console.log('🌱 La tabla de jefes de turno está vacía. Sembrando supervisores...');
+      const sortedJefes = [...shiftSupervisors].sort((a, b) => a.localeCompare(b));
+      for (const jefe of sortedJefes) {
+        await run('INSERT INTO jefes (name) VALUES (?)', [jefe]);
+      }
+      console.log('✅ Jefes de Turno inicializados en base de datos.');
+    } else {
+      console.log('ℹ️ La tabla de jefes ya contiene registros. Manteniendo consistencia.');
+    }
+  }
+
+  runInit()
+    .then(() => {
+      console.log('🎉 Verificación/Inicialización de la estructura de base de datos Groundster completa.');
+      db.close((err) => {
+        if (callback) callback(err);
+      });
+    })
+    .catch((err) => {
+      console.error('❌ Error al inicializar la base de datos:', err);
+      db.close(() => {
+        if (callback) callback(err);
+      });
+    });
 }
 
 // If run directly (e.g. node database.js)
